@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基金持仓管理</title>
+    <meta name="description" content="管理您的基金持仓，实时查看估值和收益">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e2e8f0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 0.95rem;
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 12px;
+            font-size: 0.85rem;
+            color: #a0aec0;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 工具栏 */
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* 汇总卡片 */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .summary-card .label {
+            font-size: 0.85rem;
+            color: #a0aec0;
+            margin-bottom: 8px;
+        }
+
+        .summary-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .summary-card .value.positive { color: #fc8181; }
+        .summary-card .value.negative { color: #68d391; }
+
+        /* 表格容器 */
+        .table-container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 16px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            background: rgba(102, 126, 234, 0.2);
+            color: #e2e8f0;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .fund-name {
+            font-weight: 600;
+            color: #a78bfa;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .positive { color: #fc8181; }
+        .negative { color: #68d391; }
+
+        /* 可编辑输入框 */
+        .editable-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #e2e8f0;
+            font-size: 0.9rem;
+            width: 100%;
+            max-width: 120px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .editable-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .editable-input.code {
+            max-width: 90px;
+        }
+
+        /* 操作按钮 */
+        .action-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn.delete {
+            background: rgba(245, 101, 101, 0.2);
+            color: #fc8181;
+        }
+
+        .action-btn.delete:hover {
+            background: rgba(245, 101, 101, 0.4);
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #718096;
+        }
+
+        .empty-state .icon {
+            font-size: 4rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            margin-bottom: 8px;
+        }
+
+        /* Toast 提示 */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success { border-left: 4px solid #48bb78; }
+        .toast.error { border-left: 4px solid #f56565; }
+
+        /* 隐藏的文件输入 */
+        #fileInput {
+            display: none;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            body {
+                padding: 12px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .toolbar {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+
+            .btn {
+                padding: 10px 12px;
+                font-size: 0.8rem;
+            }
+
+            .summary-cards {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+
+            .summary-card {
+                padding: 14px;
+            }
+
+            .summary-card .value {
+                font-size: 1.2rem;
+            }
+
+            .summary-card .label {
+                font-size: 0.75rem;
+            }
+
+            /* 隐藏桌面表格，显示卡片 */
+            .table-container table {
+                display: none;
+            }
+
+            .fund-cards {
+                display: block;
+            }
+
+            .fund-card {
+                background: rgba(255, 255, 255, 0.03);
+                border-radius: 12px;
+                padding: 16px;
+                margin-bottom: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+            }
+
+            .fund-card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 12px;
+                padding-bottom: 12px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .fund-card-name {
+                font-weight: 600;
+                color: #a78bfa;
+                font-size: 0.95rem;
+                flex: 1;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                margin-right: 10px;
+            }
+
+            .fund-card-body {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+
+            .fund-card-item {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .fund-card-item .label {
+                font-size: 0.7rem;
+                color: #718096;
+                text-transform: uppercase;
+            }
+
+            .fund-card-item .value {
+                font-size: 0.9rem;
+                color: #e2e8f0;
+            }
+
+            .fund-card-item input.editable-input {
+                max-width: 100%;
+                padding: 8px 10px;
+                font-size: 0.85rem;
+            }
+
+            .fund-card-footer {
+                margin-top: 12px;
+                padding-top: 12px;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .fund-card-time {
+                font-size: 0.7rem;
+                color: #718096;
+            }
+
+            .action-btn {
+                padding: 6px 14px;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .fund-cards {
+                display: none;
+            }
+        }
+
+        /* 更新时间闪烁效果 */
+        .updating {
+            animation: flash 0.5s ease;
+        }
+
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 基金持仓管理</h1>
+            <p class="subtitle">实时追踪您的基金持仓收益</p>
+            <div class="status-bar">
+                <span class="status-dot"></span>
+                <span id="updateStatus">数据实时更新中</span>
+                <span id="lastUpdate"></span>
+            </div>
+        </header>
+
+        <div class="toolbar">
+            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                <span>📥</span> 导入持仓
+            </button>
+            <button class="btn btn-success" onclick="exportData()">
+                <span>📤</span> 导出持仓
+            </button>
+            <button class="btn btn-secondary" onclick="addNewFund()">
+                <span>➕</span> 添加基金
+            </button>
+            <button class="btn btn-danger" onclick="clearAll()">
+                <span>🗑️</span> 清空全部
+            </button>
+            <input type="file" id="fileInput" accept=".json" onchange="importData(event)">
+        </div>
+
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="label">总持有金额</div>
+                <div class="value" id="totalAmount">¥0.00</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">总收益金额</div>
+                <div class="value" id="totalProfit">¥0.00</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">今日估算收益</div>
+                <div class="value" id="todayProfit">¥0.00</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">持有基金数</div>
+                <div class="value" id="fundCount">0</div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>基金代码</th>
+                        <th>基金名称</th>
+                        <th>持有金额</th>
+                        <th>累计收益率</th>
+                        <th>累计收益</th>
+                        <th>今日估值</th>
+                        <th>今日收益</th>
+                        <th>估值时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="fundTableBody">
+                </tbody>
+            </table>
+            <div class="fund-cards" id="fundCards"></div>
+            <div class="empty-state" id="emptyState">
+                <div class="icon">📁</div>
+                <p>暂无持仓数据</p>
+                <p>点击"导入持仓"或"添加基金"开始</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 基金数据存储
+        let funds = [];
+        let updateInterval = null;
+        let isEditing = false; // 编辑状态标志
+
+        // 页面加载时恢复数据
+        document.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem('fundPortfolio');
+            if (saved) {
+                try {
+                    funds = JSON.parse(saved);
+                    renderTable();
+                    startAutoUpdate();
+                } catch (e) {
+                    console.error('恢复数据失败', e);
+                }
+            }
+            updateEmptyState();
+        });
+
+        // JSONP请求函数
+        function jsonp(url, callbackName) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                const uniqueCallback = callbackName + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                const timeout = setTimeout(() => {
+                    cleanup();
+                    reject(new Error('请求超时'));
+                }, 5000);
+
+                window[uniqueCallback] = (data) => {
+                    cleanup();
+                    resolve(data);
+                };
+
+                // 兼容原有的jsonpgz回调
+                window.jsonpgz = (data) => {
+                    cleanup();
+                    resolve(data);
+                };
+
+                function cleanup() {
+                    clearTimeout(timeout);
+                    delete window[uniqueCallback];
+                    delete window.jsonpgz;
+                    if (script.parentNode) {
+                        script.parentNode.removeChild(script);
+                    }
+                }
+
+                script.src = url;
+                script.onerror = () => {
+                    cleanup();
+                    reject(new Error('请求失败'));
+                };
+
+                document.head.appendChild(script);
+            });
+        }
+
+        // 获取基金数据
+        async function fetchFundData(fundCode) {
+            try {
+                const url = `https://fundgz.1234567.com.cn/js/${fundCode}.js?rt=${Date.now()}`;
+                const data = await jsonp(url, 'jsonpgz');
+                return data;
+            } catch (error) {
+                console.error(`获取基金 ${fundCode} 数据失败:`, error);
+                return null;
+            }
+        }
+
+        // 更新所有基金数据
+        async function updateAllFunds() {
+            if (funds.length === 0 || isEditing) return;
+
+            const promises = funds.map(async (fund, index) => {
+                const data = await fetchFundData(fund.code);
+                if (data && data.fundcode) {
+                    funds[index].name = data.name || fund.name;
+                    funds[index].gszzl = parseFloat(data.gszzl) || 0;
+                    funds[index].gztime = data.gztime || '-';
+                    // 计算今日收益金额
+                    funds[index].todayProfit = (fund.amount * fund.gszzl / 100).toFixed(2);
+                }
+            });
+
+            await Promise.all(promises);
+            renderTable();
+            saveData();
+            updateLastUpdateTime();
+        }
+
+        // 更新最后更新时间
+        function updateLastUpdateTime() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = 
+                `(${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')})`;
+        }
+
+        // 开始自动更新
+        function startAutoUpdate() {
+            if (updateInterval) clearInterval(updateInterval);
+            updateAllFunds(); // 立即更新一次
+            updateInterval = setInterval(updateAllFunds, 3000); // 每3秒更新
+        }
+
+        // 停止自动更新
+        function stopAutoUpdate() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+        }
+
+        // 渲染表格
+        function renderTable() {
+            const tbody = document.getElementById('fundTableBody');
+            const cardsContainer = document.getElementById('fundCards');
+            
+            if (funds.length === 0) {
+                tbody.innerHTML = '';
+                cardsContainer.innerHTML = '';
+                updateEmptyState();
+                updateSummary();
+                return;
+            }
+
+            // 桌面端表格
+            tbody.innerHTML = funds.map((fund, index) => {
+                const gszzlClass = fund.gszzl >= 0 ? 'positive' : 'negative';
+                const gszzlPrefix = fund.gszzl >= 0 ? '+' : '';
+                const todayProfitClass = parseFloat(fund.todayProfit) >= 0 ? 'positive' : 'negative';
+                const profitClass = fund.profitRate >= 0 ? 'positive' : 'negative';
+                const totalProfit = (fund.amount * fund.profitRate / 100).toFixed(2);
+
+                return `
+                    <tr data-index="${index}">
+                        <td>
+                            <input type="text" class="editable-input code" value="${fund.code}" 
+                                   onfocus="isEditing=true" onblur="isEditing=false"
+                                   onchange="updateFund(${index}, 'code', this.value)" 
+                                   maxlength="6" placeholder="代码">
+                        </td>
+                        <td class="fund-name" title="${fund.name || '加载中...'}">${fund.name || '加载中...'}</td>
+                        <td>
+                            <input type="number" class="editable-input" value="${fund.amount}" 
+                                   onfocus="isEditing=true" onblur="isEditing=false"
+                                   onchange="updateFund(${index}, 'amount', parseFloat(this.value) || 0)" 
+                                   step="0.01" placeholder="金额">
+                        </td>
+                        <td>
+                            <input type="number" class="editable-input" value="${fund.profitRate}" 
+                                   onfocus="isEditing=true" onblur="isEditing=false"
+                                   onchange="updateFund(${index}, 'profitRate', parseFloat(this.value) || 0)" 
+                                   step="0.01" placeholder="%">%
+                        </td>
+                        <td class="${profitClass}">¥${totalProfit}</td>
+                        <td class="${gszzlClass}">${gszzlPrefix}${fund.gszzl?.toFixed(2) || '0.00'}%</td>
+                        <td class="${todayProfitClass}">¥${fund.todayProfit || '0.00'}</td>
+                        <td style="font-size: 0.8rem; color: #a0aec0;">${fund.gztime || '-'}</td>
+                        <td>
+                            <button class="action-btn delete" onclick="deleteFund(${index})">删除</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // 移动端卡片
+            cardsContainer.innerHTML = funds.map((fund, index) => {
+                const gszzlClass = fund.gszzl >= 0 ? 'positive' : 'negative';
+                const gszzlPrefix = fund.gszzl >= 0 ? '+' : '';
+                const todayProfitClass = parseFloat(fund.todayProfit) >= 0 ? 'positive' : 'negative';
+                const profitClass = fund.profitRate >= 0 ? 'positive' : 'negative';
+                const totalProfit = (fund.amount * fund.profitRate / 100).toFixed(2);
+
+                return `
+                    <div class="fund-card" data-index="${index}">
+                        <div class="fund-card-header">
+                            <span class="fund-card-name">${fund.name || '加载中...'}</span>
+                            <button class="action-btn delete" onclick="deleteFund(${index})">删除</button>
+                        </div>
+                        <div class="fund-card-body">
+                            <div class="fund-card-item">
+                                <span class="label">基金代码</span>
+                                <input type="text" class="editable-input" value="${fund.code}" 
+                                       onfocus="isEditing=true" onblur="isEditing=false"
+                                       onchange="updateFund(${index}, 'code', this.value)" 
+                                       maxlength="6" placeholder="代码">
+                            </div>
+                            <div class="fund-card-item">
+                                <span class="label">持有金额</span>
+                                <input type="number" class="editable-input" value="${fund.amount}" 
+                                       onfocus="isEditing=true" onblur="isEditing=false"
+                                       onchange="updateFund(${index}, 'amount', parseFloat(this.value) || 0)" 
+                                       step="0.01" placeholder="金额">
+                            </div>
+                            <div class="fund-card-item">
+                                <span class="label">累计收益率</span>
+                                <div style="display:flex;align-items:center;">
+                                    <input type="number" class="editable-input" value="${fund.profitRate}" 
+                                           onfocus="isEditing=true" onblur="isEditing=false"
+                                           onchange="updateFund(${index}, 'profitRate', parseFloat(this.value) || 0)" 
+                                           step="0.01" placeholder="%" style="max-width:80px;">
+                                    <span style="margin-left:4px;">%</span>
+                                </div>
+                            </div>
+                            <div class="fund-card-item">
+                                <span class="label">累计收益</span>
+                                <span class="value ${profitClass}">¥${totalProfit}</span>
+                            </div>
+                            <div class="fund-card-item">
+                                <span class="label">今日估值</span>
+                                <span class="value ${gszzlClass}">${gszzlPrefix}${fund.gszzl?.toFixed(2) || '0.00'}%</span>
+                            </div>
+                            <div class="fund-card-item">
+                                <span class="label">今日收益</span>
+                                <span class="value ${todayProfitClass}">¥${fund.todayProfit || '0.00'}</span>
+                            </div>
+                        </div>
+                        <div class="fund-card-footer">
+                            <span class="fund-card-time">估值时间: ${fund.gztime || '-'}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            updateEmptyState();
+            updateSummary();
+        }
+
+        // 更新汇总数据
+        function updateSummary() {
+            const totalAmount = funds.reduce((sum, f) => sum + (f.amount || 0), 0);
+            const totalProfit = funds.reduce((sum, f) => sum + (f.amount * f.profitRate / 100 || 0), 0);
+            const todayProfit = funds.reduce((sum, f) => sum + (parseFloat(f.todayProfit) || 0), 0);
+
+            document.getElementById('totalAmount').textContent = `¥${totalAmount.toFixed(2)}`;
+            
+            const totalProfitEl = document.getElementById('totalProfit');
+            totalProfitEl.textContent = `${totalProfit >= 0 ? '+' : ''}¥${totalProfit.toFixed(2)}`;
+            totalProfitEl.className = `value ${totalProfit >= 0 ? 'positive' : 'negative'}`;
+
+            const todayProfitEl = document.getElementById('todayProfit');
+            todayProfitEl.textContent = `${todayProfit >= 0 ? '+' : ''}¥${todayProfit.toFixed(2)}`;
+            todayProfitEl.className = `value ${todayProfit >= 0 ? 'positive' : 'negative'}`;
+
+            document.getElementById('fundCount').textContent = funds.length;
+        }
+
+        // 更新空状态显示
+        function updateEmptyState() {
+            document.getElementById('emptyState').style.display = funds.length === 0 ? 'block' : 'none';
+        }
+
+        // 更新基金字段
+        function updateFund(index, field, value) {
+            if (field === 'code' && !/^\d{6}$/.test(value)) {
+                showToast('基金代码应为6位数字', 'error');
+                renderTable();
+                return;
+            }
+            funds[index][field] = value;
+            if (field === 'code') {
+                funds[index].name = '加载中...';
+                updateAllFunds();
+            }
+            saveData();
+            renderTable();
+        }
+
+        // 删除基金
+        function deleteFund(index) {
+            funds.splice(index, 1);
+            saveData();
+            renderTable();
+            showToast('已删除', 'success');
+        }
+
+        // 添加新基金
+        function addNewFund() {
+            funds.push({
+                code: '',
+                name: '',
+                amount: 0,
+                profitRate: 0,
+                gszzl: 0,
+                todayProfit: '0.00',
+                gztime: '-'
+            });
+            renderTable();
+            startAutoUpdate();
+            showToast('已添加新基金，请填写信息', 'success');
+        }
+
+        // 清空所有
+        function clearAll() {
+            if (funds.length === 0) return;
+            if (confirm('确定要清空所有持仓数据吗？')) {
+                funds = [];
+                saveData();
+                renderTable();
+                showToast('已清空所有数据', 'success');
+            }
+        }
+
+        // 导入数据
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (Array.isArray(data)) {
+                        funds = data.map(f => ({
+                            code: f.code || '',
+                            name: f.name || '',
+                            amount: parseFloat(f.amount) || 0,
+                            profitRate: parseFloat(f.profitRate) || 0,
+                            gszzl: 0,
+                            todayProfit: '0.00',
+                            gztime: '-'
+                        }));
+                        saveData();
+                        renderTable();
+                        startAutoUpdate();
+                        showToast(`成功导入 ${funds.length} 只基金`, 'success');
+                    } else {
+                        throw new Error('数据格式错误');
+                    }
+                } catch (error) {
+                    showToast('导入失败：' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // 重置input
+        }
+
+        // 导出数据
+        function exportData() {
+            if (funds.length === 0) {
+                showToast('没有数据可导出', 'error');
+                return;
+            }
+
+            const exportFunds = funds.map(f => ({
+                code: f.code,
+                name: f.name,
+                amount: f.amount,
+                profitRate: f.profitRate
+            }));
+
+            const dataStr = JSON.stringify(exportFunds, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `基金持仓_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast('导出成功', 'success');
+        }
+
+        // 保存到本地存储
+        function saveData() {
+            localStorage.setItem('fundPortfolio', JSON.stringify(funds));
+        }
+
+        // 显示提示
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => {
+                toast.className = 'toast';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
