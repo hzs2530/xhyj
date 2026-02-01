@@ -577,25 +577,74 @@
             }
         }
 
+        // 获取历史净值计算实际涨幅
+        async function fetchNetValue(fundCode) {
+            try {
+                const url = `https://api.fund.eastmoney.com/f10/lsjz?fundCode=${fundCode}&pageIndex=1&pageSize=2&_=${Date.now()}`;
+                const response = await fetch(url, {
+                    headers: { 'Referer': 'https://fund.eastmoney.com/' }
+                });
+                const data = await response.json();
+                if (data && data.Data && data.Data.LSJZList && data.Data.LSJZList.length >= 2) {
+                    const today = data.Data.LSJZList[0];
+                    const yesterday = data.Data.LSJZList[1];
+                    const todayValue = parseFloat(today.DWJZ);
+                    const yesterdayValue = parseFloat(yesterday.DWJZ);
+                    const actualRate = ((todayValue - yesterdayValue) / yesterdayValue * 100).toFixed(2);
+                    return {
+                        jzrq: today.FSRQ,
+                        dwjz: todayValue,
+                        actualRate: parseFloat(actualRate)
+                    };
+                }
+                return null;
+            } catch (error) {
+                console.error(`获取基金 ${fundCode} 净值失败:`, error);
+                return null;
+            }
+        }
+
         // 更新所有基金数据
         async function updateAllFunds() {
             if (funds.length === 0 || isEditing) return;
 
-            const promises = funds.map(async (fund, index) => {
+            // 串行请求，避免JSONP回调冲突
+            for (let index = 0; index < funds.length; index++) {
+                const fund = funds[index];
+                if (!fund.code || !/^\d{6}$/.test(fund.code)) continue;
+                
                 const data = await fetchFundData(fund.code);
                 if (data && data.fundcode) {
                     funds[index].name = data.name || fund.name;
                     funds[index].gszzl = parseFloat(data.gszzl) || 0;
                     funds[index].gztime = data.gztime || '-';
+                    funds[index].jzrq = data.jzrq || '';
+                    funds[index].isActual = false;
+                    
+                    // 检查是否需要获取实际净值涨幅
+                    const gzDate = data.gztime ? data.gztime.split(' ')[0] : '';
+                    if (data.jzrq && data.jzrq === gzDate) {
+                        // 净值已更新，获取历史净值计算实际涨幅
+                        const netData = await fetchNetValue(fund.code);
+                        if (netData && netData.actualRate !== undefined) {
+                            funds[index].gszzl = netData.actualRate;
+                            funds[index].isActual = true;
+                        }
+                    }
+                    
                     // 计算今日收益金额
-                    funds[index].todayProfit = (fund.amount * fund.gszzl / 100).toFixed(2);
+                    funds[index].todayProfit = (funds[index].amount * funds[index].gszzl / 100).toFixed(2);
                 }
-            });
+            }
 
-            await Promise.all(promises);
             renderTable();
             saveData();
             updateLastUpdateTime();
+        }
+
+        // 判断是否已收盘（净值已更新）
+        function isNetValueUpdated(fund) {
+            return fund.isActual === true;
         }
 
         // 更新最后更新时间
@@ -644,6 +693,8 @@
                 const gszzlClass = fund.gszzl >= 0 ? 'positive' : 'negative';
                 const gszzlPrefix = fund.gszzl >= 0 ? '+' : '';
                 const todayProfitClass = parseFloat(fund.todayProfit) >= 0 ? 'positive' : 'negative';
+                const isUpdated = isNetValueUpdated(fund);
+                const valueLabel = isUpdated ? '涨幅' : '估值';
 
                 return `
                     <tr data-index="${index}">
@@ -660,7 +711,7 @@
                                    onchange="updateFund(${index}, 'amount', parseFloat(this.value) || 0)" 
                                    step="0.01" placeholder="金额">
                         </td>
-                        <td class="${gszzlClass}">${gszzlPrefix}${fund.gszzl?.toFixed(2) || '0.00'}%</td>
+                        <td class="${gszzlClass}" title="${valueLabel}">${gszzlPrefix}${fund.gszzl?.toFixed(2) || '0.00'}%${isUpdated ? '' : '(估)'}</td>
                         <td class="${todayProfitClass}">¥${fund.todayProfit || '0.00'}</td>
                         <td style="font-size: 0.8rem; color: #a0aec0;">${fund.gztime || '-'}</td>
                         <td>
@@ -675,6 +726,8 @@
                 const gszzlClass = fund.gszzl >= 0 ? 'positive' : 'negative';
                 const gszzlPrefix = fund.gszzl >= 0 ? '+' : '';
                 const todayProfitClass = parseFloat(fund.todayProfit) >= 0 ? 'positive' : 'negative';
+                const isUpdated = isNetValueUpdated(fund);
+                const valueLabel = isUpdated ? '今日涨幅' : '今日估值';
 
                 return `
                     <div class="fund-card" data-index="${index}">
@@ -698,7 +751,7 @@
                                        step="0.01" placeholder="金额">
                             </div>
                             <div class="fund-card-item">
-                                <span class="label">今日估值</span>
+                                <span class="label">${valueLabel}</span>
                                 <span class="value ${gszzlClass}">${gszzlPrefix}${fund.gszzl?.toFixed(2) || '0.00'}%</span>
                             </div>
                             <div class="fund-card-item">
@@ -707,7 +760,7 @@
                             </div>
                         </div>
                         <div class="fund-card-footer">
-                            <span class="fund-card-time">估值时间: ${fund.gztime || '-'}</span>
+                            <span class="fund-card-time">${isUpdated ? '净值' : '估值'}时间: ${fund.gztime || '-'}</span>
                         </div>
                     </div>
                 `;
