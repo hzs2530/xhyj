@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>基金持仓管理</title>
+    <title>小黄养基</title>
     <meta name="description" content="管理您的基金持仓，实时查看估值和收益">
     <style>
         * {
@@ -123,28 +123,28 @@
         /* 汇总卡片 */
         .summary-cards {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
         }
 
         .summary-card {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 20px;
+            border-radius: 10px;
+            padding: 12px;
             text-align: center;
         }
 
         .summary-card .label {
-            font-size: 0.85rem;
+            font-size: 0.7rem;
             color: #a0aec0;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
         .summary-card .value {
-            font-size: 1.5rem;
+            font-size: 1rem;
             font-weight: 700;
         }
 
@@ -313,20 +313,20 @@
             }
 
             .summary-cards {
-                grid-template-columns: 1fr 1fr;
-                gap: 10px;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 6px;
             }
 
             .summary-card {
-                padding: 14px;
+                padding: 8px;
             }
 
             .summary-card .value {
-                font-size: 1.2rem;
+                font-size: 0.85rem;
             }
 
             .summary-card .label {
-                font-size: 0.75rem;
+                font-size: 0.6rem;
             }
 
             /* 隐藏桌面表格，显示卡片 */
@@ -434,7 +434,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>📊 基金持仓管理</h1>
+            <h1>🐤 小黄养基</h1>
             <p class="subtitle">实时追踪您的基金持仓收益</p>
             <div class="status-bar">
                 <span class="status-dot"></span>
@@ -453,6 +453,9 @@
             <button class="btn btn-secondary" onclick="addNewFund()">
                 <span>➕</span> 添加基金
             </button>
+            <button class="btn btn-secondary" onclick="settleProfit()">
+                <span>💰</span> 收益结算
+            </button>
             <button class="btn btn-danger" onclick="clearAll()">
                 <span>🗑️</span> 清空全部
             </button>
@@ -463,10 +466,6 @@
             <div class="summary-card">
                 <div class="label">总持有金额</div>
                 <div class="value" id="totalAmount">¥0.00</div>
-            </div>
-            <div class="summary-card">
-                <div class="label">总收益金额</div>
-                <div class="value" id="totalProfit">¥0.00</div>
             </div>
             <div class="summary-card">
                 <div class="label">今日估算收益</div>
@@ -485,8 +484,6 @@
                         <th>基金代码</th>
                         <th>基金名称</th>
                         <th>持有金额</th>
-                        <th>累计收益率</th>
-                        <th>累计收益</th>
                         <th>今日估值</th>
                         <th>今日收益</th>
                         <th>估值时间</th>
@@ -612,7 +609,7 @@
         function startAutoUpdate() {
             if (updateInterval) clearInterval(updateInterval);
             updateAllFunds(); // 立即更新一次
-            updateInterval = setInterval(updateAllFunds, 3000); // 每3秒更新
+            updateInterval = setInterval(updateAllFunds, 1000); // 每1秒更新
         }
 
         // 停止自动更新
@@ -625,6 +622,12 @@
 
         // 渲染表格
         function renderTable() {
+            // 编辑状态下只更新汇总，不重新渲染列表
+            if (isEditing) {
+                updateSummary();
+                return;
+            }
+
             const tbody = document.getElementById('fundTableBody');
             const cardsContainer = document.getElementById('fundCards');
             
@@ -641,8 +644,6 @@
                 const gszzlClass = fund.gszzl >= 0 ? 'positive' : 'negative';
                 const gszzlPrefix = fund.gszzl >= 0 ? '+' : '';
                 const todayProfitClass = parseFloat(fund.todayProfit) >= 0 ? 'positive' : 'negative';
-                const profitClass = fund.profitRate >= 0 ? 'positive' : 'negative';
-                const totalProfit = (fund.amount * fund.profitRate / 100).toFixed(2);
 
                 return `
                     <tr data-index="${index}">
@@ -654,18 +655,11 @@
                         </td>
                         <td class="fund-name" title="${fund.name || '加载中...'}">${fund.name || '加载中...'}</td>
                         <td>
-                            <input type="number" class="editable-input" value="${fund.amount}" 
+                            <input type="number" class="editable-input" value="${fund.amount.toFixed(2)}" 
                                    onfocus="isEditing=true" onblur="isEditing=false"
                                    onchange="updateFund(${index}, 'amount', parseFloat(this.value) || 0)" 
                                    step="0.01" placeholder="金额">
                         </td>
-                        <td>
-                            <input type="number" class="editable-input" value="${fund.profitRate}" 
-                                   onfocus="isEditing=true" onblur="isEditing=false"
-                                   onchange="updateFund(${index}, 'profitRate', parseFloat(this.value) || 0)" 
-                                   step="0.01" placeholder="%">%
-                        </td>
-                        <td class="${profitClass}">¥${totalProfit}</td>
                         <td class="${gszzlClass}">${gszzlPrefix}${fund.gszzl?.toFixed(2) || '0.00'}%</td>
                         <td class="${todayProfitClass}">¥${fund.todayProfit || '0.00'}</td>
                         <td style="font-size: 0.8rem; color: #a0aec0;">${fund.gztime || '-'}</td>
@@ -681,8 +675,6 @@
                 const gszzlClass = fund.gszzl >= 0 ? 'positive' : 'negative';
                 const gszzlPrefix = fund.gszzl >= 0 ? '+' : '';
                 const todayProfitClass = parseFloat(fund.todayProfit) >= 0 ? 'positive' : 'negative';
-                const profitClass = fund.profitRate >= 0 ? 'positive' : 'negative';
-                const totalProfit = (fund.amount * fund.profitRate / 100).toFixed(2);
 
                 return `
                     <div class="fund-card" data-index="${index}">
@@ -700,24 +692,10 @@
                             </div>
                             <div class="fund-card-item">
                                 <span class="label">持有金额</span>
-                                <input type="number" class="editable-input" value="${fund.amount}" 
+                                <input type="number" class="editable-input" value="${fund.amount.toFixed(2)}" 
                                        onfocus="isEditing=true" onblur="isEditing=false"
                                        onchange="updateFund(${index}, 'amount', parseFloat(this.value) || 0)" 
                                        step="0.01" placeholder="金额">
-                            </div>
-                            <div class="fund-card-item">
-                                <span class="label">累计收益率</span>
-                                <div style="display:flex;align-items:center;">
-                                    <input type="number" class="editable-input" value="${fund.profitRate}" 
-                                           onfocus="isEditing=true" onblur="isEditing=false"
-                                           onchange="updateFund(${index}, 'profitRate', parseFloat(this.value) || 0)" 
-                                           step="0.01" placeholder="%" style="max-width:80px;">
-                                    <span style="margin-left:4px;">%</span>
-                                </div>
-                            </div>
-                            <div class="fund-card-item">
-                                <span class="label">累计收益</span>
-                                <span class="value ${profitClass}">¥${totalProfit}</span>
                             </div>
                             <div class="fund-card-item">
                                 <span class="label">今日估值</span>
@@ -741,15 +719,11 @@
 
         // 更新汇总数据
         function updateSummary() {
-            const totalAmount = funds.reduce((sum, f) => sum + (f.amount || 0), 0);
-            const totalProfit = funds.reduce((sum, f) => sum + (f.amount * f.profitRate / 100 || 0), 0);
+            // 总持有金额 = 各基金持有金额 + 今日收益
+            const totalAmount = funds.reduce((sum, f) => sum + (f.amount || 0) + (parseFloat(f.todayProfit) || 0), 0);
             const todayProfit = funds.reduce((sum, f) => sum + (parseFloat(f.todayProfit) || 0), 0);
 
             document.getElementById('totalAmount').textContent = `¥${totalAmount.toFixed(2)}`;
-            
-            const totalProfitEl = document.getElementById('totalProfit');
-            totalProfitEl.textContent = `${totalProfit >= 0 ? '+' : ''}¥${totalProfit.toFixed(2)}`;
-            totalProfitEl.className = `value ${totalProfit >= 0 ? 'positive' : 'negative'}`;
 
             const todayProfitEl = document.getElementById('todayProfit');
             todayProfitEl.textContent = `${todayProfit >= 0 ? '+' : ''}¥${todayProfit.toFixed(2)}`;
@@ -765,18 +739,20 @@
 
         // 更新基金字段
         function updateFund(index, field, value) {
-            if (field === 'code' && !/^\d{6}$/.test(value)) {
+            if (field === 'code' && value !== '' && !/^\d{6}$/.test(value)) {
                 showToast('基金代码应为6位数字', 'error');
-                renderTable();
                 return;
             }
             funds[index][field] = value;
-            if (field === 'code') {
+            if (field === 'code' && /^\d{6}$/.test(value)) {
                 funds[index].name = '加载中...';
-                updateAllFunds();
+                // 延迟获取数据，避免打断编辑
+                setTimeout(() => {
+                    if (!isEditing) updateAllFunds();
+                }, 500);
             }
             saveData();
-            renderTable();
+            updateSummary();
         }
 
         // 删除基金
@@ -799,7 +775,8 @@
                 gztime: '-'
             });
             renderTable();
-            startAutoUpdate();
+            saveData();
+            // 不再调用 startAutoUpdate，定时器已在运行
             showToast('已添加新基金，请填写信息', 'success');
         }
 
@@ -811,6 +788,33 @@
                 saveData();
                 renderTable();
                 showToast('已清空所有数据', 'success');
+            }
+        }
+
+        // 收益结算：将今日收益加到持有金额
+        function settleProfit() {
+            if (funds.length === 0) {
+                showToast('没有持仓数据', 'error');
+                return;
+            }
+            const todayProfit = funds.reduce((sum, f) => sum + (parseFloat(f.todayProfit) || 0), 0);
+            if (todayProfit === 0) {
+                showToast('今日收益为0，无需结算', 'error');
+                return;
+            }
+            const profitText = todayProfit >= 0 ? `+¥${todayProfit.toFixed(2)}` : `-¥${Math.abs(todayProfit).toFixed(2)}`;
+            if (confirm(`确定将今日收益（${profitText}）结算到持有金额中吗？\n结算后将停止数据更新。`)) {
+                funds.forEach(fund => {
+                    fund.amount = parseFloat(((fund.amount || 0) + (parseFloat(fund.todayProfit) || 0)).toFixed(2));
+                    fund.todayProfit = '0.00';
+                    fund.gszzl = 0;
+                });
+                stopAutoUpdate();
+                document.getElementById('updateStatus').textContent = '已结算，数据更新已停止';
+                document.querySelector('.status-dot').style.background = '#718096';
+                saveData();
+                renderTable();
+                showToast('收益已结算，数据更新已停止', 'success');
             }
         }
 
